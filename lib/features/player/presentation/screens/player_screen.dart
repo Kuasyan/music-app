@@ -7,15 +7,18 @@ import '../../../../shared/widgets/pressable.dart';
 /// Экран полноэкранного музыкального плеера («Большой плеер»).
 ///
 /// На данном этапе экран содержит только стрелку закрытия (сворачивания);
-/// элементы управления будут добавляться пошагово.
+/// остальные элементы управления будут добавляться пошагово.
 class PlayerScreen extends StatelessWidget {
   /// Текущий воспроизводимый трек.
   final Track? track;
 
-  /// Отступ стрелки закрытия сверху и слева.
-  static const double backButtonPadding = 16.0;
+  /// Отступ кнопки закрытия сверху от границы статус-бара (как на экране Release).
+  static const double backButtonTopOffset = 4.0;
 
-  /// Размер хит-зоны стрелки закрытия по стандартам Google (48x48 dp).
+  /// Отступ кнопки закрытия слева от края экрана (как на экране Release).
+  static const double backButtonLeftOffset = 6.0;
+
+  /// Размер хит-зоны кнопки закрытия по стандартам Google (48x48 dp).
   static const double backButtonTouchTarget = 48.0;
 
   const PlayerScreen({
@@ -25,21 +28,20 @@ class PlayerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.paddingOf(context).top;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: Padding(
-            padding: const EdgeInsets.only(
-              left: backButtonPadding,
-              top: backButtonPadding,
-            ),
-            child: _PlayerBackButton(
+      body: Stack(
+        children: [
+          Positioned(
+            top: topPadding + backButtonTopOffset,
+            left: backButtonLeftOffset,
+            child: _PlayerCloseButton(
               onTap: () => Navigator.maybePop(context),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -47,12 +49,13 @@ class PlayerScreen extends StatelessWidget {
 
 /// Кнопка закрытия («Назад») большого плеера.
 ///
-/// Имеет невидимые границы размером 48x48 dp по стандартам Google (WCAG / Material Target Size),
-/// центрированную стрелку и тактильный отклик при нажатии.
-class _PlayerBackButton extends StatelessWidget {
+/// Имеет невидимые границы 48x48 dp по стандартам Google (WCAG / Material Target Size),
+/// расположена на тех же координатах, что и стрелка возврата на экране Release,
+/// и поддерживает плавный тактильный отклик при нажатии.
+class _PlayerCloseButton extends StatelessWidget {
   final VoidCallback onTap;
 
-  const _PlayerBackButton({required this.onTap});
+  const _PlayerCloseButton({required this.onTap});
 
   static final Color _pressedColor = Color.alphaBlend(
     AppColors.pressedOverlay,
