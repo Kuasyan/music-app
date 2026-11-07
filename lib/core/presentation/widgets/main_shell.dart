@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../shared/widgets/pressable.dart';
 import '../../theme/app_colors.dart';
 
 /// Базовый каркас приложения (Shell Route).
@@ -11,9 +12,18 @@ class MainShell extends StatelessWidget {
 
   const MainShell({super.key, required this.navigationShell});
 
+  /// Вкладки в порядке веток [StatefulShellRoute].
+  static const _tabs = [
+    (icon: Icons.home_rounded, label: 'Главная'),
+    (icon: Icons.search_rounded, label: 'Поиск'),
+    (icon: Icons.library_music_rounded, label: 'Медиатека'),
+    (icon: Icons.person_rounded, label: 'Профиль'),
+  ];
+
   void _onTap(int index) {
     navigationShell.goBranch(
       index,
+      // Повторное нажатие на активную вкладку возвращает её к корневому экрану.
       initialLocation: index == navigationShell.currentIndex,
     );
   }
@@ -23,39 +33,30 @@ class MainShell extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: navigationShell,
-      bottomNavigationBar: Container(
+      bottomNavigationBar: ColoredBox(
         color: AppColors.background,
         child: SafeArea(
           top: false,
-          child: SizedBox(
-            height: 58,
-            child: Row(
-              children: [
-                _NavBarItem(
-                  icon: Icons.home_rounded,
-                  label: 'Главная',
-                  isSelected: navigationShell.currentIndex == 0,
-                  onTap: () => _onTap(0),
-                ),
-                _NavBarItem(
-                  icon: Icons.search_rounded,
-                  label: 'Поиск',
-                  isSelected: navigationShell.currentIndex == 1,
-                  onTap: () => _onTap(1),
-                ),
-                _NavBarItem(
-                  icon: Icons.library_music_rounded,
-                  label: 'Медиатека',
-                  isSelected: navigationShell.currentIndex == 2,
-                  onTap: () => _onTap(2),
-                ),
-                _NavBarItem(
-                  icon: Icons.person_rounded,
-                  label: 'Профиль',
-                  isSelected: navigationShell.currentIndex == 3,
-                  onTap: () => _onTap(3),
-                ),
-              ],
+          // Панель фиксированной высоты: подписи масштабируются не более чем
+          // в 1.3 раза (как в стандартном BottomNavigationBar), иначе при
+          // крупном системном шрифте они не помещаются.
+          child: MediaQuery.withClampedTextScaling(
+            maxScaleFactor: 1.3,
+            child: SizedBox(
+              height: 58,
+              child: Row(
+                children: [
+                  for (final (index, tab) in _tabs.indexed)
+                    Expanded(
+                      child: _NavBarItem(
+                        icon: tab.icon,
+                        label: tab.label,
+                        isSelected: navigationShell.currentIndex == index,
+                        onTap: () => _onTap(index),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -65,7 +66,7 @@ class MainShell extends StatelessWidget {
 }
 
 /// Интерактивный элемент нижней панели навигации с микроанимацией нажатия (scale feedback).
-class _NavBarItem extends StatefulWidget {
+class _NavBarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
@@ -79,42 +80,30 @@ class _NavBarItem extends StatefulWidget {
   });
 
   @override
-  State<_NavBarItem> createState() => _NavBarItemState();
-}
-
-class _NavBarItemState extends State<_NavBarItem> {
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    final color = widget.isSelected
-        ? AppColors.textPrimary
-        : const Color(0xFFA7A7A7);
+    final color = isSelected ? AppColors.textPrimary : AppColors.textSecondary;
 
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) => setState(() => _isPressed = false),
-        onTapCancel: () => setState(() => _isPressed = false),
-        onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: _isPressed ? 0.88 : 1.0,
+    return Semantics(
+      selected: isSelected,
+      child: Pressable(
+        onTap: onTap,
+        builder: (context, isPressed) => AnimatedScale(
+          scale: isPressed ? 0.88 : 1.0,
           duration: const Duration(milliseconds: 110),
           curve: Curves.easeInOut,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(widget.icon, size: 24, color: color),
+              Icon(icon, size: 24, color: color),
               const SizedBox(height: 4.0),
               Text(
-                widget.label,
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: color,
                   fontSize: 11,
-                  fontWeight: widget.isSelected
-                      ? FontWeight.w600
-                      : FontWeight.w500,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   letterSpacing: -0.2,
                 ),
               ),

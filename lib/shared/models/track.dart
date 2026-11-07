@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Тип музыкального релиза.
 enum ReleaseType {
   album('Альбом'),
@@ -9,8 +11,11 @@ enum ReleaseType {
   const ReleaseType(this.label);
 
   /// Безопасный парсинг из строки (нечувствителен к регистру).
-  static ReleaseType fromString(String value) {
-    return switch (value.toLowerCase().trim()) {
+  ///
+  /// Принимает как машинное имя (`playlist`), так и отображаемое (`Плейлист`).
+  /// Неизвестные и отсутствующие значения трактуются как [ReleaseType.album].
+  static ReleaseType fromString(String? value) {
+    return switch (value?.toLowerCase().trim()) {
       'плейлист' || 'playlist' => ReleaseType.playlist,
       'сингл' || 'single' => ReleaseType.single,
       _ => ReleaseType.album,
@@ -19,6 +24,7 @@ enum ReleaseType {
 }
 
 /// Доменная модель музыкального трека или релиза.
+@immutable
 class Track {
   /// Уникальный идентификатор трека.
   final String id;
@@ -29,11 +35,11 @@ class Track {
   /// Имя исполнителя или автора подборки.
   final String artist;
 
-  /// URL изображения обложки.
+  /// URL изображения обложки (пустая строка, если обложки нет).
   final String coverUrl;
 
-  /// Строковый тип релиза для удобного отображения в интерфейсе.
-  final String type;
+  /// Тип релиза.
+  final ReleaseType type;
 
   /// Прямая ссылка на аудиопоток или файл (опционально).
   final String? audioUrl;
@@ -58,7 +64,7 @@ class Track {
     required this.title,
     required this.artist,
     required this.coverUrl,
-    this.type = 'Альбом',
+    this.type = ReleaseType.album,
     this.audioUrl,
     this.duration,
     this.releaseDate,
@@ -67,9 +73,6 @@ class Track {
     this.tracks,
   });
 
-  /// Типизированное перечисление типа релиза.
-  ReleaseType get releaseType => ReleaseType.fromString(type);
-
   /// Создание модели из Map/JSON (для интеграции с REST API или Supabase).
   factory Track.fromJson(Map<String, dynamic> json) {
     return Track(
@@ -77,22 +80,22 @@ class Track {
       title: json['title'] as String,
       artist: json['artist'] as String,
       coverUrl: json['cover_url'] as String? ?? json['coverUrl'] as String? ?? '',
-      type: json['type'] as String? ?? 'Альбом',
+      type: ReleaseType.fromString(json['type'] as String?),
       audioUrl: json['audio_url'] as String? ?? json['audioUrl'] as String?,
-      duration: json['duration_ms'] != null
-          ? Duration(milliseconds: json['duration_ms'] as int)
-          : null,
-      releaseDate: json['release_date'] as String?,
-      savesCount: json['saves_count'] as int?,
-      totalDuration: json['total_duration_ms'] != null
-          ? Duration(milliseconds: json['total_duration_ms'] as int)
-          : null,
-      tracks: json['tracks'] != null
-          ? (json['tracks'] as List<dynamic>)
-              .map((e) => Track.fromJson(e as Map<String, dynamic>))
-              .toList()
-          : null,
+      duration: _durationFromMs(json['duration_ms']),
+      releaseDate: json['release_date']?.toString(),
+      savesCount: (json['saves_count'] as num?)?.toInt(),
+      totalDuration: _durationFromMs(json['total_duration_ms']),
+      tracks: (json['tracks'] as List<dynamic>?)
+          ?.map((e) => Track.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
+  }
+
+  /// JSON-декодер может вернуть целое число как `double`, поэтому приводим через [num].
+  static Duration? _durationFromMs(Object? value) {
+    final ms = (value as num?)?.toInt();
+    return ms == null ? null : Duration(milliseconds: ms);
   }
 
   /// Преобразование модели в Map/JSON.
@@ -102,7 +105,7 @@ class Track {
       'title': title,
       'artist': artist,
       'cover_url': coverUrl,
-      'type': type,
+      'type': type.name,
       if (audioUrl != null) 'audio_url': audioUrl,
       if (duration != null) 'duration_ms': duration!.inMilliseconds,
       if (releaseDate != null) 'release_date': releaseDate,
@@ -119,7 +122,7 @@ class Track {
     String? title,
     String? artist,
     String? coverUrl,
-    String? type,
+    ReleaseType? type,
     String? audioUrl,
     Duration? duration,
     String? releaseDate,
@@ -157,7 +160,7 @@ class Track {
           releaseDate == other.releaseDate &&
           savesCount == other.savesCount &&
           totalDuration == other.totalDuration &&
-          tracks == other.tracks;
+          listEquals(tracks, other.tracks);
 
   @override
   int get hashCode => Object.hash(
@@ -171,6 +174,6 @@ class Track {
         releaseDate,
         savesCount,
         totalDuration,
-        tracks,
+        tracks == null ? null : Object.hashAll(tracks!),
       );
 }

@@ -32,13 +32,13 @@ class HorizontalSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double extraHeight = switch (metadataStyle) {
-      CardMetadataStyle.standard => 66.0,
-      CardMetadataStyle.compact => 46.0,
-      CardMetadataStyle.none => 0.0,
-    };
-
-    final sectionHeight = cardSize + extraHeight;
+    // Высота считается с учётом системного масштаба шрифта, иначе при крупном
+    // тексте в настройках доступности подписи карточек вылезают за пределы списка.
+    final sectionHeight = cardSize +
+        RecommendationCard.metadataHeight(
+          metadataStyle,
+          MediaQuery.textScalerOf(context),
+        );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,7 +61,7 @@ class HorizontalSection extends StatelessWidget {
                 track: track,
                 size: cardSize,
                 metadataStyle: metadataStyle,
-                onTap: () => onTrackTap?.call(track),
+                onTap: onTrackTap == null ? null : () => onTrackTap!(track),
               );
             },
           ),

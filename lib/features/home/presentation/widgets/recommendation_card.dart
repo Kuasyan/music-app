@@ -1,8 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/models/track.dart';
+import '../../../../shared/widgets/cover_image.dart';
+import '../../../../shared/widgets/pressable.dart';
 
 /// Варианты компоновки текстовых метаданных под обложкой карточки.
 enum CardMetadataStyle {
@@ -17,7 +19,7 @@ enum CardMetadataStyle {
 }
 
 /// Карточка музыкального релиза с сетевой обложкой, кэшированием и интерактивным откликом.
-class RecommendationCard extends StatefulWidget {
+class RecommendationCard extends StatelessWidget {
   /// Модель музыкального трека или релиза.
   final Track track;
 
@@ -31,11 +33,16 @@ class RecommendationCard extends StatefulWidget {
   final CardMetadataStyle metadataStyle;
 
   /// Стандартный размер обложки по умолчанию.
-  static const double cardSize = 150.0;
-  static const double defaultSize = cardSize;
+  static const double defaultSize = 150.0;
 
   /// Радиус скругления углов обложки.
   static const double borderRadius = 4.0;
+
+  /// Отступ между обложкой и текстовыми метаданными.
+  static const double _metadataGap = 8.0;
+
+  /// Интервал между строками метаданных.
+  static const double _lineGap = 2.0;
 
   const RecommendationCard({
     super.key,
@@ -45,183 +52,72 @@ class RecommendationCard extends StatefulWidget {
     this.metadataStyle = CardMetadataStyle.standard,
   });
 
-  @override
-  State<RecommendationCard> createState() => _RecommendationCardState();
-}
+  /// Высота блока метаданных под обложкой с учётом системного масштаба шрифта.
+  ///
+  /// Нужна горизонтальным спискам, которым требуется фиксированная высота.
+  static double metadataHeight(
+    CardMetadataStyle style,
+    TextScaler textScaler,
+  ) {
+    // Движок округляет высоту строки абзаца вверх до целого пикселя.
+    double lineHeight(TextStyle s) =>
+        (textScaler.scale(s.fontSize!) * s.height!).ceilToDouble();
 
-class _RecommendationCardState extends State<RecommendationCard> {
-  bool _isPressed = false;
-  DateTime? _pressStartTime;
+    final title = lineHeight(AppTypography.cardTitle);
+    final subtitle = lineHeight(AppTypography.cardSubtitle);
 
-  void _handleTapDown(TapDownDetails _) {
-    _pressStartTime = DateTime.now();
-    setState(() => _isPressed = true);
-  }
-
-  Future<void> _handleTapUp(TapUpDetails _) async {
-    final startTime = _pressStartTime;
-    if (startTime != null) {
-      final elapsed = DateTime.now().difference(startTime);
-      const minFeedbackDuration = Duration(milliseconds: 140);
-      if (elapsed < minFeedbackDuration) {
-        await Future.delayed(minFeedbackDuration - elapsed);
-      }
-    }
-
-    if (mounted) {
-      setState(() => _isPressed = false);
-    }
-    widget.onTap?.call();
-  }
-
-  void _handleTapCancel() {
-    if (mounted) {
-      setState(() => _isPressed = false);
-    }
+    return switch (style) {
+      CardMetadataStyle.standard =>
+        _metadataGap + subtitle + _lineGap + title + _lineGap + subtitle,
+      CardMetadataStyle.compact => _metadataGap + title + _lineGap + subtitle,
+      CardMetadataStyle.none => 0.0,
+    };
   }
 
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.topCenter,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: _handleTapDown,
-        onTapUp: _handleTapUp,
-        onTapCancel: _handleTapCancel,
-        child: AnimatedScale(
-          scale: _isPressed ? 0.95 : 1.0,
+      child: Pressable(
+        onTap: onTap,
+        minPressedDuration: const Duration(milliseconds: 140),
+        builder: (context, isPressed) => AnimatedScale(
+          scale: isPressed ? 0.95 : 1.0,
           duration: const Duration(milliseconds: 110),
           curve: Curves.easeInOut,
           child: SizedBox(
-            width: widget.size,
+            width: size,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
-                  width: widget.size,
-                  height: widget.size,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(
-                      RecommendationCard.borderRadius,
-                    ),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        CachedNetworkImage(
-                          imageUrl: widget.track.coverUrl,
-                          fit: BoxFit.cover,
-                          memCacheWidth: 300,
-                          memCacheHeight: 300,
-                          maxWidthDiskCache: 600,
-                          maxHeightDiskCache: 600,
-                          placeholder: (context, url) => Container(
-                            color: const Color(0xFF1E1E1E),
-                            child: const Center(
-                              child: Icon(
-                                Icons.music_note_rounded,
-                                color: Color(0xFF404040),
-                                size: 32,
-                              ),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: const Color(0xFF1E1E1E),
-                            child: const Center(
-                              child: Icon(
-                                Icons.broken_image_rounded,
-                                color: Color(0xFF404040),
-                                size: 32,
-                              ),
-                            ),
-                          ),
-                        ),
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 90),
-                          curve: Curves.easeInOut,
-                          color: _isPressed
-                              ? const Color(0x40000000)
-                              : Colors.transparent,
-                        ),
-                      ],
-                    ),
+                AnimatedContainer(
+                  width: size,
+                  height: size,
+                  duration: const Duration(milliseconds: 90),
+                  curve: Curves.easeInOut,
+                  foregroundDecoration: BoxDecoration(
+                    color: isPressed
+                        ? AppColors.pressedOverlay
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(borderRadius),
+                  ),
+                  child: CoverImage(
+                    url: track.coverUrl,
+                    cacheSize: size,
+                    borderRadius: borderRadius,
                   ),
                 ),
-                if (widget.metadataStyle != CardMetadataStyle.none) ...[
-                  const SizedBox(height: 8.0),
+                if (metadataStyle != CardMetadataStyle.none) ...[
+                  const SizedBox(height: _metadataGap),
                   AnimatedOpacity(
                     duration: const Duration(milliseconds: 90),
                     curve: Curves.easeInOut,
-                    opacity: _isPressed ? 0.55 : 1.0,
+                    opacity: isPressed ? 0.55 : 1.0,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (widget.metadataStyle == CardMetadataStyle.compact) ...[
-                          Text(
-                            widget.track.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.3,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 2.0),
-                          Text(
-                            '${widget.track.type} • ${widget.track.artist}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFFA7A7A7),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ] else if (widget.metadataStyle == CardMetadataStyle.standard) ...[
-                          Text(
-                            widget.track.type,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFFA7A7A7),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                          const SizedBox(height: 2.0),
-                          Text(
-                            widget.track.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.3,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 2.0),
-                          Text(
-                            widget.track.artist,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFFA7A7A7),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ],
-                      ],
+                      children: _buildMetadataLines(),
                     ),
                   ),
                 ],
@@ -231,5 +127,33 @@ class _RecommendationCardState extends State<RecommendationCard> {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildMetadataLines() {
+    Widget line(String text, TextStyle style) => Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: style,
+        );
+
+    return switch (metadataStyle) {
+      CardMetadataStyle.standard => [
+          line(track.type.label, AppTypography.cardSubtitle),
+          const SizedBox(height: _lineGap),
+          line(track.title, AppTypography.cardTitle),
+          const SizedBox(height: _lineGap),
+          line(track.artist, AppTypography.cardSubtitle),
+        ],
+      CardMetadataStyle.compact => [
+          line(track.title, AppTypography.cardTitle),
+          const SizedBox(height: _lineGap),
+          line(
+            '${track.type.label} • ${track.artist}',
+            AppTypography.cardSubtitle,
+          ),
+        ],
+      CardMetadataStyle.none => const [],
+    };
   }
 }

@@ -16,6 +16,8 @@ void main() {
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
+      // Для iOS: светлые иконки статус-бара на тёмном фоне.
+      statusBarBrightness: Brightness.dark,
       systemNavigationBarColor: AppColors.background,
       systemNavigationBarIconBrightness: Brightness.light,
     ),
@@ -25,24 +27,22 @@ void main() {
 }
 
 /// Корневой виджет приложения с глобальной тёмной темой и маршрутизацией [GoRouter].
-class MusicApp extends StatelessWidget {
+class MusicApp extends ConsumerWidget {
   const MusicApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
       title: 'Music App',
       debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.dark,
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: AppColors.background,
+      theme: ThemeData(
         colorScheme: const ColorScheme.dark(
           surface: AppColors.background,
           primary: AppColors.textPrimary,
         ),
+        scaffoldBackgroundColor: AppColors.background,
       ),
-      routerConfig: appRouter,
+      routerConfig: ref.watch(routerProvider),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/track.dart';
 import '../../data/mock_home_data.dart';
@@ -19,7 +20,7 @@ class HomeScreen extends ConsumerWidget {
   static const double sectionSpacing = 32.0;
 
   void _openRelease(BuildContext context, Track track) {
-    context.push('/release', extra: track);
+    context.push(AppRoutes.release(track.id), extra: track);
   }
 
   @override

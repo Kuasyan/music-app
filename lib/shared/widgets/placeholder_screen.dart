@@ -35,11 +35,11 @@ class PlaceholderScreen extends StatelessWidget {
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E1E),
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(16.0),
                   ),
                   child: Center(
-                    child: Icon(icon, size: 32, color: const Color(0xFFA7A7A7)),
+                    child: Icon(icon, size: 32, color: AppColors.textSecondary),
                   ),
                 ),
                 const SizedBox(height: 20.0),
@@ -58,7 +58,7 @@ class PlaceholderScreen extends StatelessWidget {
                   description,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: Color(0xFFA7A7A7),
+                    color: AppColors.textSecondary,
                     fontSize: 14,
                     height: 1.4,
                   ),
