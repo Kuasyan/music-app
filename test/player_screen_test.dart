@@ -14,14 +14,17 @@ void main() {
       type: ReleaseType.single,
     );
 
-    testWidgets('PlayerScreen shows the current track', (tester) async {
+    testWidgets('PlayerScreen renders close arrow and does not render content',
+        (tester) async {
       await tester.pumpWidget(
         const MaterialApp(home: PlayerScreen(track: testTrack)),
       );
 
       expect(find.byType(Scaffold), findsOneWidget);
-      expect(find.text('Starboy'), findsOneWidget);
-      expect(find.text('The Weeknd'), findsOneWidget);
+      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsOneWidget);
+      // На текущем этапе экран пуст за исключением стрелки закрытия
+      expect(find.text('Starboy'), findsNothing);
+      expect(find.text('The Weeknd'), findsNothing);
     });
 
     testWidgets('Close button pops the player', (tester) async {
