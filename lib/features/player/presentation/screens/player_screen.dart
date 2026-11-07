@@ -21,6 +21,9 @@ class PlayerScreen extends StatelessWidget {
   /// Размер хит-зоны кнопки закрытия по стандартам Google (48x48 dp).
   static const double backButtonTouchTarget = 48.0;
 
+  /// Размер самой иконки стрелки закрытия (в dp).
+  static const double backButtonIconSize = 32.0;
+
   const PlayerScreen({
     super.key,
     this.track,
@@ -84,7 +87,7 @@ class _PlayerCloseButton extends StatelessWidget {
                 curve: Curves.easeInOut,
                 builder: (context, color, child) => Icon(
                   Icons.keyboard_arrow_down_rounded,
-                  size: 32.0,
+                  size: PlayerScreen.backButtonIconSize,
                   color: color,
                 ),
               ),
