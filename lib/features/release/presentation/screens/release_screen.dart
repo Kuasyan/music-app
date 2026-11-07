@@ -118,71 +118,74 @@ class _ReleaseScreenState extends State<ReleaseScreen> {
     // Скроллируемый контент не зависит от смещения скролла, поэтому строится
     // один раз и передаётся в AnimatedBuilder как child: на каждом кадре
     // перестраиваются только наложенные слои (обложка, AppBar, кнопка «Назад»).
-    final scrollContent = CustomScrollView(
-      controller: _scrollController,
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: _TightBouncingScrollPhysics(),
-      ),
-      slivers: [
-        SliverToBoxAdapter(
-          child: Stack(
-            children: [
-              // Фоновый градиент под обложкой и шапкой релиза,
-              // заканчивается у нижнего края шапки цветом фона экрана.
-              Positioned.fill(
-                child: AnimatedOpacity(
-                  opacity: _dominantColor != null ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 600),
-                  curve: Curves.easeOut,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          gradientTop,
-                          gradientMid,
-                          AppColors.background,
-                        ],
-                        stops: const [0.0, 0.45, 1.0],
+    final scrollContent = ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(overscroll: false),
+      child: CustomScrollView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: _TightScrollPhysics(),
+        ),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Stack(
+              children: [
+                // Фоновый градиент под обложкой и шапкой релиза,
+                // заканчивается у нижнего края шапки цветом фона экрана.
+                Positioned.fill(
+                  child: AnimatedOpacity(
+                    opacity: _dominantColor != null ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 600),
+                    curve: Curves.easeOut,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            gradientTop,
+                            gradientMid,
+                            AppColors.background,
+                          ],
+                          stops: const [0.0, 0.45, 1.0],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: EdgeInsets.only(
-                  top: initialCoverTop,
-                  left: 16.0,
-                  right: 16.0,
-                  bottom: 16.0,
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: initialCoverTop,
+                    left: 16.0,
+                    right: 16.0,
+                    bottom: 16.0,
+                  ),
+                  child: _ReleaseHeader(
+                    release: release,
+                    // Невидимый заполнитель исходного размера обложки: сама обложка
+                    // рисуется поверх скролла и анимируется отдельно.
+                    coverPlaceholderHeight: initialCoverSize,
+                    onPlay: trackList.isEmpty
+                        ? null
+                        : () => _openPlayer(trackList.first),
+                  ),
                 ),
-                child: _ReleaseHeader(
-                  release: release,
-                  // Невидимый заполнитель исходного размера обложки: сама обложка
-                  // рисуется поверх скролла и анимируется отдельно.
-                  coverPlaceholderHeight: initialCoverSize,
-                  onPlay: trackList.isEmpty
-                      ? null
-                      : () => _openPlayer(trackList.first),
-                ),
-              ),
-            ],
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 32.0),
-          sliver: SliverList.separated(
-            itemCount: trackList.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12.0),
-            itemBuilder: (context, index) => _TrackTile(
-              track: trackList[index],
-              showCover: isPlaylist,
-              onTap: () => _openPlayer(trackList[index]),
+              ],
             ),
           ),
-        ),
-      ],
+          SliverPadding(
+            padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 32.0),
+            sliver: SliverList.separated(
+              itemCount: trackList.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12.0),
+              itemBuilder: (context, index) => _TrackTile(
+                track: trackList[index],
+                showCover: isPlaylist,
+                onTap: () => _openPlayer(trackList[index]),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
 
     return Scaffold(
@@ -195,7 +198,8 @@ class _ReleaseScreenState extends State<ReleaseScreen> {
               ? _scrollController.offset
               : 0.0;
 
-          final double overscroll = scrollOffset < 0.0 ? -scrollOffset : 0.0;
+          final double overscroll = (scrollOffset < 0.0 ? -scrollOffset : 0.0)
+              .clamp(0.0, _TightScrollPhysics.maxOverscroll);
 
           final double currentCoverSize;
           final double coverTop;
@@ -444,22 +448,113 @@ class _ReleaseHeader extends StatelessWidget {
   }
 }
 
-/// Упругая физика скролла с высоким сопротивлением оверскролла.
+/// Физика скролла для экрана релиза с жестким ограничением оверскролла.
 ///
-/// В отличие от стандартного [BouncingScrollPhysics] (коэффициент трения 0.52),
-/// здесь коэффициент уменьшен до 0.10: экран можно оттянуть лишь на небольшое
-/// контролируемое расстояние, после чего он пружинит обратно.
-class _TightBouncingScrollPhysics extends BouncingScrollPhysics {
-  const _TightBouncingScrollPhysics({super.parent});
+/// Поведение полностью идентично экрану «Главная»:
+/// 1. При оттягивании вниз контент сдвигается максимум на [maxOverscroll] (14 dp)
+///    с высоким сопротивлением.
+/// 2. При резком взмахе (fling) вниз обложка не улетает: баллистическая скорость
+///    отсекается, и тугая пружина мгновенно возвращает экран в исходное положение (0.0).
+/// 3. Внизу списка скролл строго зафиксирован (поведение ClampingScrollPhysics).
+class _TightScrollPhysics extends ClampingScrollPhysics {
+  const _TightScrollPhysics({super.parent});
+
+  /// Максимальный сдвиг при оттягивании вниз (в dp),
+  /// точно соответствующий естественному поведению на экране «Главная».
+  static const double maxOverscroll = 14.0;
 
   @override
-  _TightBouncingScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return _TightBouncingScrollPhysics(parent: buildParent(ancestor));
+  _TightScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _TightScrollPhysics(parent: buildParent(ancestor));
   }
 
   @override
-  double frictionFactor(double overscrollFraction) {
-    return 0.10 * math.pow(1.0 - overscrollFraction.clamp(0.0, 1.0), 3.0);
+  bool shouldAcceptUserOffset(ScrollMetrics position) => true;
+
+  @override
+  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
+    assert(offset != 0.0);
+    assert(position.minScrollExtent <= position.maxScrollExtent);
+
+    // Внутри обычного диапазона скролла или скроллим вверх (pixels > 0 или offset < 0)
+    if (position.pixels > 0.0 || (position.pixels == 0.0 && offset < 0.0)) {
+      return super.applyPhysicsToUserOffset(position, offset);
+    }
+
+    // Пользователь тянет вниз у верхнего края (offset > 0 уводит pixels < 0)
+    final double currentOverscroll =
+        position.pixels < 0.0 ? -position.pixels : 0.0;
+
+    // Жесткий упор: если достигнут maxOverscroll, дальнейшее движение вниз блокируется
+    if (currentOverscroll >= maxOverscroll && offset > 0.0) {
+      return 0.0;
+    }
+
+    // Возврат пальца вверх к 0 — свободный и отзывчивый (1:1)
+    if (offset < 0.0) {
+      return offset;
+    }
+
+    // Экспоненциальное упругое сопротивление при оттягивании вниз
+    final double fraction = (currentOverscroll / maxOverscroll).clamp(0.0, 1.0);
+    final double frictionFactor = 0.08 * math.pow(1.0 - fraction, 2.0);
+    return offset * frictionFactor;
+  }
+
+  @override
+  double applyBoundaryConditions(ScrollMetrics position, double value) {
+    assert(position.minScrollExtent <= position.maxScrollExtent);
+
+    // Снизу: поведение ClampingScrollPhysics (контент не улетает вверх за пределы списка)
+    if (value > position.pixels && position.pixels >= position.maxScrollExtent) {
+      return value - position.pixels;
+    }
+    if (value > position.maxScrollExtent &&
+        position.pixels < position.maxScrollExtent) {
+      return value - position.maxScrollExtent;
+    }
+
+    // Сверху: строгое ограничение максимального оттягивания maxOverscroll
+    if (value < position.pixels && position.pixels <= -maxOverscroll) {
+      return value - position.pixels;
+    }
+    if (value < -maxOverscroll && position.pixels > -maxOverscroll) {
+      return value - (-maxOverscroll);
+    }
+
+    return 0.0;
+  }
+
+  @override
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) {
+    final Tolerance tolerance = toleranceFor(position);
+
+    // Если находимся в зоне оверскролла (pixels < 0.0)
+    if (position.pixels < 0.0) {
+      // Исключаем вылет обложки вниз: скорость не может быть отрицательной
+      return ScrollSpringSimulation(
+        const SpringDescription(
+          mass: 1.0,
+          stiffness: 400.0,
+          damping: 30.0,
+        ),
+        position.pixels,
+        0.0,
+        math.max(0.0, velocity),
+        tolerance: tolerance,
+      );
+    }
+
+    // Если находимся на верхнем краю (0.0) и был резкий взмах вниз —
+    // баллистический оверскролл не запускается (как на Главной)
+    if (position.pixels <= 0.0 && velocity < 0.0) {
+      return null;
+    }
+
+    return super.createBallisticSimulation(position, velocity);
   }
 }
 

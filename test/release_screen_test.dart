@@ -422,5 +422,63 @@ void main() {
         closeTo(initialBackButtonRect.top, 0.5),
       );
     });
+
+    testWidgets(
+      'sharp pull-down restricts cover and arrow displacement strictly to max 14 dp',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ReleaseScreen(
+              track: Track(
+                id: 'test_clamp_album',
+                title: 'Тест Зажима',
+                artist: 'Тестовый Артист',
+                coverUrl: '',
+                tracks: _tracks(5),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final coverFinder = find.byType(ClipRRect);
+        final backButtonFinder = find.byIcon(Icons.arrow_back_rounded);
+        final initialCoverTop = tester.getRect(coverFinder).top;
+        final initialBackButtonTop = tester.getRect(backButtonFinder).top;
+
+        // Резкое сильное оттягивание вниз на 600 пикселей
+        final gesture = await tester.startGesture(const Offset(200, 200));
+        await gesture.moveBy(const Offset(0, 600));
+        await tester.pump();
+
+        final coverDisplacement =
+            tester.getRect(coverFinder).top - initialCoverTop;
+        final arrowDisplacement =
+            tester.getRect(backButtonFinder).top - initialBackButtonTop;
+
+        // Смещение строго ограничено максимум 14.0 dp (поведение как на экране Главная)
+        expect(coverDisplacement, greaterThan(0.0));
+        expect(coverDisplacement, lessThanOrEqualTo(14.0 + 0.01));
+        expect(arrowDisplacement, greaterThan(0.0));
+        expect(arrowDisplacement, lessThanOrEqualTo(14.0 + 0.01));
+
+        // Обложка и стрелка смещаются синхронно на одинаковую величину
+        expect(coverDisplacement, closeTo(arrowDisplacement, 0.01));
+
+        // Отпускаем палец — экран мгновенно возвращается в исходное положение
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(tester.getRect(coverFinder).top, closeTo(initialCoverTop, 0.5));
+        expect(
+          tester.getRect(backButtonFinder).top,
+          closeTo(initialBackButtonTop, 0.5),
+        );
+      },
+    );
   });
 }
