@@ -22,12 +22,9 @@ class PlayerScreen extends StatelessWidget {
   static const double backButtonTouchTarget = 48.0;
 
   /// Размер самой иконки стрелки закрытия (в dp).
-  static const double backButtonIconSize = 32.0;
+  static const double backButtonIconSize = 36.0;
 
-  const PlayerScreen({
-    super.key,
-    this.track,
-  });
+  const PlayerScreen({super.key, this.track});
 
   @override
   Widget build(BuildContext context) {
@@ -40,9 +37,7 @@ class PlayerScreen extends StatelessWidget {
           Positioned(
             top: topPadding + backButtonTopOffset,
             left: backButtonLeftOffset,
-            child: _PlayerCloseButton(
-              onTap: () => Navigator.maybePop(context),
-            ),
+            child: _PlayerCloseButton(onTap: () => Navigator.maybePop(context)),
           ),
         ],
       ),
